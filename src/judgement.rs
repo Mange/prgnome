@@ -13,6 +13,8 @@ const FORBIDDEN_LABELS: [&'static str; 9] = [
     "blocked",
 ];
 
+const MAX_COMMITS: u64 = 50;
+
 #[derive(Debug, Default)]
 pub struct Intel<'a> {
     pub label_names: Vec<&'a str>,
@@ -36,6 +38,13 @@ fn truncate(s: &str) -> &str {
 
 impl<'a> Intel<'a> {
     pub fn validate(&self) -> Judgement {
+        if self.total_commits > MAX_COMMITS {
+            return Judgement::NotApproved(format!(
+                "Rebase until you have {} commits or fewer",
+                MAX_COMMITS
+            ));
+        }
+
         for message in &self.commit_messages {
             // No need to have very long messages here as we're only looking at the start of the
             // message, or for very short whole messages.
@@ -138,5 +147,21 @@ mod tests {
         };
 
         assert_eq!(intel.validate(), Judgement::Approved);
+    }
+
+    #[test]
+    fn it_forbids_too_many_commits() {
+        let intel = Intel {
+            total_commits: MAX_COMMITS + 1,
+            ..Default::default()
+        };
+
+        assert_eq!(
+            intel.validate(),
+            Judgement::NotApproved(format!(
+                "Rebase until you have {} commits or fewer",
+                MAX_COMMITS
+            ))
+        );
     }
 }
