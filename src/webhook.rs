@@ -12,11 +12,41 @@ pub enum Event {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum PullRequestEvent {
-    Labeled {},
-    Unlabeled {},
+    Labeled {
+        label: Label,
+        pull_request: PullRequest,
+    },
+    Unlabeled {
+        label: Label,
+        pull_request: PullRequest,
+    },
 
     #[serde(other)]
     Other, // { payload: serde_json::Value, },
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Label {
+    id: u64,
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Commit {
+    sha: String,
+    #[serde(rename = "ref")]
+    ref_name: Option<String>,
+    label: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PullRequest {
+    id: u64,
+    number: u64,
+    title: String,
+    labels: Vec<Label>,
+    head: Commit,
+    base: Commit,
 }
 
 #[derive(Debug, Fail)]
