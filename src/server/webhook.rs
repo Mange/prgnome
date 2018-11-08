@@ -1,8 +1,8 @@
 use super::prelude::*;
 use crate::webhook::Event;
-use github_api::{NewStatus, State as CommitState};
+use github_api::{Client as GithubClient, NewStatus, State as CommitState};
 use judgement::*;
-use utils::log_error_trace_if_err;
+use utils::{log_error_trace, log_error_trace_if_err};
 
 const STATUS_CONTEXT_NAME: &str = "mange/prgnome";
 
@@ -12,8 +12,6 @@ pub fn handle_webhook(
     body: String,
 ) -> Result<String> {
     let event = Event::parse_json(&event_name.0, &body)?;
-    debug!("{:#?}", event);
-
     match event {
         Event::PullRequest(pr_event) => {
             if let (Some(repo_url), Some(pr), Some(installation)) = (
@@ -24,11 +22,26 @@ pub fn handle_webhook(
                 let auth_token = state.get_or_create_auth_token(installation.id)?;
                 let label_names: Vec<&str> =
                     pr.labels.iter().map(|label| label.name.as_str()).collect();
+                let (total_commits, commit_messages) = load_commits(
+                    &state.api_client,
+                    repo_url,
+                    &auth_token,
+                    &pr.base.sha,
+                    &pr.head.sha,
+                ).unwrap_or_else(|err| {
+                    log_error_trace(err.as_fail());
+                    Default::default()
+                });
 
-                let intel = Intel { label_names };
+                let intel = Intel {
+                    label_names,
+                    total_commits,
+                    commit_messages,
+                };
 
                 let judgement = intel.validate();
-                let new_status = new_status_from_judgment(&judgement);
+                let new_status = new_status_from_judgment(judgement);
+                info!("Setting new status to: {:#?}", new_status);
 
                 log_error_trace_if_err(&state.api_client.create_status(
                     &auth_token,
@@ -44,18 +57,33 @@ pub fn handle_webhook(
     Ok(format!("OK"))
 }
 
-fn new_status_from_judgment(judgement: &Judgement) -> NewStatus {
+fn load_commits(
+    api_client: &GithubClient,
+    repo_url: &str,
+    auth_token: &str,
+    base_sha: &str,
+    head_sha: &str,
+) -> Result<(u64, Vec<String>)> {
+    let commit_list = api_client.list_commits_in_range(auth_token, repo_url, base_sha, head_sha)?;
+    Ok((
+        commit_list.total_commits,
+        commit_list
+            .commits
+            .into_iter()
+            .map(|c| c.commit.message)
+            .collect(),
+    ))
+}
+
+fn new_status_from_judgment(judgement: Judgement) -> NewStatus {
     let (state, description) = match judgement {
         Judgement::Approved => (CommitState::Success, None),
-        Judgement::NotApproved => (
-            CommitState::Failure,
-            Some("Failure description is not yet implemented"),
-        ),
+        Judgement::NotApproved(message) => (CommitState::Failure, Some(message)),
     };
 
     NewStatus {
         state: state,
-        description: description.map(String::from),
+        description,
         context: STATUS_CONTEXT_NAME.into(),
         target_url: None,
     }
@@ -69,7 +97,6 @@ impl<S> actix_web::FromRequest<S> for EventName {
     type Result = Result<EventName>;
 
     fn from_request(req: &HttpRequest<S>, _cfg: &Self::Config) -> Self::Result {
-        debug!("headers: {:#?}", req.headers());
         let header = req
             .headers()
             .get("X-Github-Event")

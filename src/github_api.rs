@@ -65,23 +65,6 @@ impl Client {
         Ok(body.token)
     }
 
-    /// Use the Github v3 API to get statuses for a particular commit SHA.
-    pub fn statuses(
-        &self,
-        auth_token: &str,
-        repo_url: &str,
-        sha: &str,
-    ) -> Result<Vec<Status>, ApiError> {
-        let full_path = format!("{repo}/commits/{sha}/statuses", repo = repo_url, sha = sha);
-        let client = reqwest::Client::new();
-
-        let mut response = add_headers(client.get(&full_path), auth_token)
-            .send()?
-            .error_for_status()?;
-
-        response.json().map_err(ApiError::from)
-    }
-
     pub fn create_status(
         &self,
         auth_token: &str,
@@ -94,6 +77,28 @@ impl Client {
 
         let mut response = add_headers(client.post(&full_path), auth_token)
             .json(&input)
+            .send()?
+            .error_for_status()?;
+
+        response.json().map_err(ApiError::from)
+    }
+
+    pub fn list_commits_in_range(
+        &self,
+        auth_token: &str,
+        repo_url: &str,
+        base_sha: &str,
+        head_sha: &str,
+    ) -> Result<CommitList, ApiError> {
+        let full_path = format!(
+            "{repo}/compare/{base}...{head}",
+            repo = repo_url,
+            base = base_sha,
+            head = head_sha
+        );
+        let client = reqwest::Client::new();
+
+        let mut response = add_headers(client.get(&full_path), auth_token)
             .send()?
             .error_for_status()?;
 
@@ -153,6 +158,23 @@ pub enum State {
 
     #[serde(other)]
     Other,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CommitList {
+    pub total_commits: u64,
+    pub commits: Vec<CommitInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CommitInfo {
+    pub sha: String,
+    pub commit: Commit,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Commit {
+    pub message: String,
 }
 
 #[derive(Debug, Deserialize)]
