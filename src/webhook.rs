@@ -15,10 +15,14 @@ pub enum PullRequestEvent {
     Labeled {
         label: Label,
         pull_request: PullRequest,
+        repository: Repository,
+        installation: Installation,
     },
     Unlabeled {
         label: Label,
         pull_request: PullRequest,
+        repository: Repository,
+        installation: Installation,
     },
 
     #[serde(other)]
@@ -27,26 +31,39 @@ pub enum PullRequestEvent {
 
 #[derive(Debug, Deserialize)]
 pub struct Label {
-    id: u64,
-    name: String,
+    pub id: u64,
+    pub name: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Commit {
-    sha: String,
+    pub sha: String,
     #[serde(rename = "ref")]
-    ref_name: Option<String>,
-    label: Option<String>,
+    pub ref_name: Option<String>,
+    pub label: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PullRequest {
-    id: u64,
-    number: u64,
-    title: String,
-    labels: Vec<Label>,
-    head: Commit,
-    base: Commit,
+    pub id: u64,
+    pub number: u64,
+    pub title: String,
+    pub labels: Vec<Label>,
+    pub head: Commit,
+    pub base: Commit,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Repository {
+    pub id: u64,
+    pub name: String,
+    pub full_name: String,
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Installation {
+    pub id: u64,
 }
 
 #[derive(Debug, Fail)]
@@ -71,6 +88,30 @@ impl Event {
 impl PullRequestEvent {
     pub fn parse_json(json: &str) -> Result<PullRequestEvent, WebhookError> {
         serde_json::from_str(json).map_err(WebhookError::from)
+    }
+
+    pub fn repo_url(&self) -> Option<&str> {
+        match self {
+            PullRequestEvent::Labeled { repository, .. } => Some(&repository.url),
+            PullRequestEvent::Unlabeled { repository, .. } => Some(&repository.url),
+            PullRequestEvent::Other => None,
+        }
+    }
+
+    pub fn pull_request(&self) -> Option<&PullRequest> {
+        match self {
+            PullRequestEvent::Labeled { pull_request, .. } => Some(pull_request),
+            PullRequestEvent::Unlabeled { pull_request, .. } => Some(pull_request),
+            PullRequestEvent::Other => None,
+        }
+    }
+
+    pub fn installation(&self) -> Option<&Installation> {
+        match self {
+            PullRequestEvent::Labeled { installation, .. } => Some(installation),
+            PullRequestEvent::Unlabeled { installation, .. } => Some(installation),
+            PullRequestEvent::Other => None,
+        }
     }
 }
 

@@ -1,2 +1,6 @@
 /target
 **/*.rs.bk
+
+.env
+private_key.der
+*.pem
