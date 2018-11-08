@@ -1,8 +1,12 @@
 extern crate actix_web;
 extern crate dotenv;
+extern crate env_logger;
 extern crate listenfd;
 extern crate mime;
 extern crate reqwest;
+
+#[macro_use]
+extern crate log;
 
 #[macro_use]
 extern crate failure;
@@ -11,12 +15,14 @@ extern crate failure;
 extern crate serde_derive;
 extern crate serde;
 
+use actix_web::middleware::Logger;
 use actix_web::{http, App, Result};
 use failure::{Error, ResultExt};
 use listenfd::ListenFd;
 use std::sync::Arc;
 
 mod github_api;
+mod judgement;
 mod server;
 mod token_store;
 mod utils;
@@ -38,6 +44,7 @@ fn main() {
 
 fn run() -> Result<(), Error> {
     dotenv::dotenv().ok();
+    env_logger::init();
 
     let api_client = api_client().context("Could not initialize Github API")?;
     let state = Arc::new(ServerState::new(api_client));
@@ -45,6 +52,7 @@ fn run() -> Result<(), Error> {
     let mut listenfd = ListenFd::from_env();
     let mut server = actix_web::server::new(move || {
         App::with_state(Arc::clone(&state))
+            .middleware(Logger::default())
             .resource("/", |r| r.f(server::handle_index))
             .resource("/webhook", |r| {
                 r.method(http::Method::POST).with(server::handle_webhook)

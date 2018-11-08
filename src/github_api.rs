@@ -73,23 +73,31 @@ impl Client {
         sha: &str,
     ) -> Result<Vec<Status>, ApiError> {
         let full_path = format!("{repo}/commits/{sha}/statuses", repo = repo_url, sha = sha);
+        let client = reqwest::Client::new();
 
-        let mut response = self
-            .get_request(auth_token, &full_path)?
-            .query(&[("app_id", self.app_id)])
+        let mut response = add_headers(client.get(&full_path), auth_token)
             .send()?
             .error_for_status()?;
 
         response.json().map_err(ApiError::from)
     }
 
-    fn get_request(&self, auth_token: &str, url: &str) -> Result<RequestBuilder, ApiError> {
+    pub fn create_status(
+        &self,
+        auth_token: &str,
+        repo_url: &str,
+        sha: &str,
+        input: NewStatus,
+    ) -> Result<Status, ApiError> {
+        let full_path = format!("{repo}/statuses/{sha}", repo = repo_url, sha = sha);
         let client = reqwest::Client::new();
 
-        Ok(client
-            .get(url)
-            .header("Accept", "application/vnd.github.machine-man-preview+json")
-            .header("Authorization", format!("token {}", auth_token)))
+        let mut response = add_headers(client.post(&full_path), auth_token)
+            .json(&input)
+            .send()?
+            .error_for_status()?;
+
+        response.json().map_err(ApiError::from)
     }
 
     fn new_jwt(&self) -> Result<String, ApiError> {
@@ -109,6 +117,11 @@ impl Client {
     }
 }
 
+fn add_headers(req: RequestBuilder, auth_token: &str) -> RequestBuilder {
+    req.header("Accept", "application/vnd.github.machine-man-preview+json")
+        .header("Authorization", format!("token {}", auth_token))
+}
+
 impl From<reqwest::Error> for ApiError {
     fn from(error: reqwest::Error) -> ApiError {
         ApiError::NetworkError(error)
@@ -121,6 +134,27 @@ impl From<jwt::errors::Error> for ApiError {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct NewStatus {
+    pub state: State,
+    pub context: String,
+
+    pub target_url: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum State {
+    Error,
+    Failure,
+    Pending,
+    Success,
+
+    #[serde(other)]
+    Other,
+}
+
 #[derive(Debug, Deserialize)]
 struct InstallationAccessTokens {
     token: String,
@@ -129,7 +163,7 @@ struct InstallationAccessTokens {
 
 #[derive(Debug, Deserialize)]
 pub struct Status {
-    pub state: String,
+    pub state: State,
     pub target_url: Option<String>,
     pub description: Option<String>,
     pub context: Option<String>,
