@@ -1,0 +1,14 @@
+[package]
+name = "prgnome"
+version = "0.1.0"
+authors = ["Magnus Bergmark <magnus.bergmark@gmail.com>"]
+
+[dependencies]
+actix-web = "0.7.13"
+listenfd = "0.3.3"
+serde_json = "1.0.32"
+serde_derive = "1.0.80"
+serde = "1.0.80"
+failure = "0.1.3"
+futures = "0.1.25"
+mime = "0.3.12"
