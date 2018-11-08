@@ -1,5 +1,4 @@
 extern crate actix_web;
-extern crate futures;
 extern crate listenfd;
 extern crate mime;
 
