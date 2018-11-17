@@ -39,6 +39,7 @@ pub struct AppOptions {
         short = "l",
         long = "log-level",
         value_name = "LEVEL",
+        env = "LOG_LEVEL",
         raw(possible_values = "OutputLevel::variants()")
     )]
     output_level: Option<OutputLevel>,
