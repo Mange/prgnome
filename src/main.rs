@@ -58,7 +58,7 @@ fn setup_env() {
 }
 
 fn run(app_options: AppOptions) -> Result<(), Error> {
-    let api_client = api_client().context("Could not initialize Github API")?;
+    let api_client = api_client(&app_options).context("Could not initialize Github API")?;
     let state = Arc::new(ServerState::new(api_client));
 
     let mut listenfd = ListenFd::from_env();
@@ -80,17 +80,9 @@ fn run(app_options: AppOptions) -> Result<(), Error> {
     Ok(server.run())
 }
 
-fn api_client() -> Result<GithubClient, Error> {
-    use std::env;
-
-    let app_id = env::var("GITHUB_APP_ID").context("Could not load GITHUB_APP_ID from env")?;
+fn api_client(app_options: &AppOptions) -> Result<GithubClient, Error> {
     let private_key =
-        ::std::fs::read("private_key.der").context("Failed to load private_key.der")?;
+        ::std::fs::read(&app_options.private_key_path).context("Failed to load private key")?;
 
-    Ok(GithubClient::new(
-        app_id
-            .parse::<u64>()
-            .context("Parsing GITHUB_APP_ID as an integer")?,
-        private_key,
-    ))
+    Ok(GithubClient::new(app_options.github_app_id, private_key))
 }

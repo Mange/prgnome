@@ -1,6 +1,7 @@
 extern crate log;
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -14,6 +15,45 @@ enum OutputLevel {
 #[derive(StructOpt, Debug)]
 #[structopt(raw(setting = "structopt::clap::AppSettings::ColoredHelp"))]
 pub struct AppOptions {
+    /// The Github APP ID. You can determine the app if by looking at the Github Settings panel for
+    /// the app you created in order to install this program to your repo or organization.
+    ///
+    /// It is commonly a smallish integer, like 123456.
+    ///
+    #[structopt(
+        long = "github-app-id",
+        env = "GITHUB_APP_ID",
+        value_name = "ID",
+    )]
+    pub github_app_id: u64,
+
+    /// The Github webhook secret. You should have gotten this when you created the app to install
+    /// this program to your repo or organization.
+    ///
+    /// If you've lost it, you may set a new one in the settings panel for the app on Github.
+    ///
+    #[structopt(
+        long = "github-webhook-secret",
+        env = "GITHUB_WEBHOOK_SECRET",
+        value_name = "SECRET",
+    )]
+    pub github_webhook_secret: String,
+
+    /// Path to the Github App private key file (in DER format).
+    ///
+    /// You can download the key from the settings panel for the app on Github. The downloaded key
+    /// will be in RSA format, but can be converted into DER format using the openssl binary or the
+    /// generate_private_key.sh script shipped with this binary.
+    ///
+    #[structopt(
+        long = "private-key",
+        env = "PRIVATE_KEY_PATH",
+        default_value = "private_key.der",
+        value_name = "PATH",
+        parse(from_os_str)
+    )]
+    pub private_key_path: PathBuf,
+
     /// Set the log level of the application.
     ///
     /// You can also set this through the LOG_SPECIFICATION environment variable, but this is a
@@ -35,7 +75,6 @@ pub struct AppOptions {
     /// Debug should only be useful in development and can contain sensitive information so never
     /// activate this output level in a production environment.
     ///
-    ///
     #[structopt(
         short = "l",
         long = "log-level",
@@ -50,6 +89,7 @@ pub struct AppOptions {
     /// to 0.0.0.0:80.
     ///
     /// You are of course still free to bind to the HTTP port on all interfaces if you so wish.
+    ///
     #[structopt(
         long = "bind",
         value_name = "ADDR",
