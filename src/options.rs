@@ -1,5 +1,6 @@
 extern crate log;
 
+use std::net::SocketAddr;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -43,6 +44,19 @@ pub struct AppOptions {
         raw(possible_values = "OutputLevel::variants()")
     )]
     output_level: Option<OutputLevel>,
+
+    /// Configure address to bind to. It's recommended to place this service behind a more mature
+    /// HTTP server (like nginx, Apache, etc.) for security, so the default option is not to bind
+    /// to 0.0.0.0:80.
+    ///
+    /// You are of course still free to bind to the HTTP port on all interfaces if you so wish.
+    #[structopt(
+        long = "bind",
+        value_name = "ADDR",
+        env = "BIND",
+        default_value = "127.0.0.1:8002",
+    )]
+    pub bind: SocketAddr,
 }
 
 impl AppOptions {
