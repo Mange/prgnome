@@ -15,25 +15,36 @@ extern crate failure;
 extern crate serde_derive;
 extern crate serde;
 
+#[macro_use]
+extern crate structopt;
+
 use actix_web::middleware::Logger;
 use actix_web::{http, App, Result};
 use failure::{Error, ResultExt};
 use listenfd::ListenFd;
 use std::sync::Arc;
+use structopt::StructOpt;
 
 mod github_api;
 mod judgement;
+mod options;
 mod server;
 mod token_store;
 mod utils;
 mod webhook;
 
 use github_api::Client as GithubClient;
+use options::AppOptions;
 use server::ServerState;
 use utils::log_error_trace;
 
 fn main() {
-    match run() {
+    setup_env();
+
+    let app_options = AppOptions::from_args();
+    app_options.init_logger();
+
+    match run(app_options) {
         Ok(_) => {}
         Err(err) => {
             log_error_trace(err.as_fail());
@@ -42,10 +53,11 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), Error> {
+fn setup_env() {
     dotenv::dotenv().ok();
-    env_logger::init();
+}
 
+fn run(app_options: AppOptions) -> Result<(), Error> {
     let api_client = api_client().context("Could not initialize Github API")?;
     let state = Arc::new(ServerState::new(api_client));
 
