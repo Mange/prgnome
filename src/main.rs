@@ -39,7 +39,7 @@ use server::ServerState;
 use utils::log_error_trace;
 
 fn main() {
-    setup_env();
+    dotenv::dotenv().ok();
 
     let app_options = AppOptions::from_args();
     app_options.init_logger();
@@ -51,10 +51,6 @@ fn main() {
             ::std::process::exit(1);
         }
     }
-}
-
-fn setup_env() {
-    dotenv::dotenv().ok();
 }
 
 fn run(app_options: AppOptions) -> Result<(), Error> {

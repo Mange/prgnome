@@ -134,15 +134,6 @@ impl OutputLevel {
     fn variants() -> &'static [&'static str] {
         &["error", "warning", "verbose", "debug"]
     }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            OutputLevel::Error => "error",
-            OutputLevel::Warning => "warning",
-            OutputLevel::Verbose => "verbose",
-            OutputLevel::Debug => "debug",
-        }
-    }
 }
 
 impl FromStr for OutputLevel {
