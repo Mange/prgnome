@@ -25,7 +25,29 @@ pub struct Intel<'a> {
 #[derive(Debug, PartialEq)]
 pub enum Judgement {
     Approved,
-    NotApproved(String),
+    NotApproved {
+        main_problem: String,
+        total_violations: usize,
+    },
+}
+
+impl Judgement {
+    fn add_problem(&mut self, message: String) {
+        match self {
+            Judgement::Approved => {
+                *self = Judgement::NotApproved {
+                    main_problem: message,
+                    total_violations: 1,
+                };
+            }
+            Judgement::NotApproved {
+                ref mut total_violations,
+                ..
+            } => {
+                *total_violations += 1;
+            }
+        }
+    }
 }
 
 fn truncate(s: &str) -> &str {
@@ -38,8 +60,10 @@ fn truncate(s: &str) -> &str {
 
 impl<'a> Intel<'a> {
     pub fn validate(&self) -> Judgement {
+        let mut judgement = Judgement::Approved;
+
         if self.total_commits > MAX_COMMITS {
-            return Judgement::NotApproved(format!(
+            judgement.add_problem(format!(
                 "Rebase until you have {} commits or fewer",
                 MAX_COMMITS
             ));
@@ -51,12 +75,12 @@ impl<'a> Intel<'a> {
             let normalized = truncate(message).to_ascii_lowercase();
 
             if FORBIDDEN_MESSAGES.contains(&&*normalized) {
-                return Judgement::NotApproved(format!("Rebase away \"{}\"", normalized));
+                judgement.add_problem(format!("Rebase away \"{}\"", normalized));
             }
 
             for forbidden_intro in FORBIDDEN_INTROS.iter() {
                 if normalized.starts_with(forbidden_intro) {
-                    return Judgement::NotApproved(format!("Rebase away \"{}\"", normalized));
+                    judgement.add_problem(format!("Rebase away \"{}\"", normalized));
                 }
             }
         }
@@ -64,11 +88,11 @@ impl<'a> Intel<'a> {
         for name in &self.label_names {
             let normalized = name.to_ascii_lowercase();
             if FORBIDDEN_LABELS.contains(&&*normalized) {
-                return Judgement::NotApproved(format!("Remove the \"{}\" label", name));
+                judgement.add_problem(format!("Remove the \"{}\" label", name));
             }
         }
 
-        Judgement::Approved
+        judgement
     }
 }
 
@@ -103,7 +127,10 @@ mod tests {
 
         assert_eq!(
             intel.validate(),
-            Judgement::NotApproved(String::from("Remove the \"do NOT merge\" label"))
+            Judgement::NotApproved {
+                main_problem: String::from("Remove the \"do NOT merge\" label"),
+                total_violations: 1,
+            },
         );
     }
 
@@ -119,7 +146,10 @@ mod tests {
 
         assert_eq!(
             intel.validate(),
-            Judgement::NotApproved(String::from("Rebase away \"fixup! initial commit\""))
+            Judgement::NotApproved {
+                main_problem: String::from("Rebase away \"fixup! initial commit\""),
+                total_violations: 1,
+            }
         );
     }
 
@@ -132,7 +162,10 @@ mod tests {
 
         assert_eq!(
             intel.validate(),
-            Judgement::NotApproved(String::from("Rebase away \"tmp\""))
+            Judgement::NotApproved {
+                main_problem: String::from("Rebase away \"tmp\""),
+                total_violations: 1,
+            }
         );
     }
 
@@ -158,10 +191,30 @@ mod tests {
 
         assert_eq!(
             intel.validate(),
-            Judgement::NotApproved(format!(
-                "Rebase until you have {} commits or fewer",
-                MAX_COMMITS
-            ))
+            Judgement::NotApproved {
+                main_problem: format!("Rebase until you have {} commits or fewer", MAX_COMMITS),
+                total_violations: 1,
+            }
+        );
+    }
+
+    #[test]
+    fn it_records_multiple_violations() {
+        let intel = Intel {
+            commit_messages: vec![
+                String::from("Initial commit"),
+                String::from("fixup! Initial commit"),
+            ],
+            label_names: vec!["Work-in-progress"],
+            ..Default::default()
+        };
+
+        assert_eq!(
+            intel.validate(),
+            Judgement::NotApproved {
+                main_problem: String::from("Rebase away \"fixup! initial commit\""),
+                total_violations: 2,
+            }
         );
     }
 }

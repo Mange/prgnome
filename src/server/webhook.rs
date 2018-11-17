@@ -40,7 +40,7 @@ pub fn handle_webhook(
                 };
 
                 let judgement = intel.validate();
-                let new_status = new_status_from_judgment(judgement);
+                let new_status = new_status_from_judgement(judgement);
                 info!("Setting new status to: {:#?}", new_status);
 
                 log_error_trace_if_err(&state.api_client.create_status(
@@ -75,10 +75,20 @@ fn load_commits(
     ))
 }
 
-fn new_status_from_judgment(judgement: Judgement) -> NewStatus {
+fn new_status_from_judgement(judgement: Judgement) -> NewStatus {
     let (state, description) = match judgement {
         Judgement::Approved => (CommitState::Success, None),
-        Judgement::NotApproved(message) => (CommitState::Failure, Some(message)),
+        Judgement::NotApproved {
+            main_problem,
+            total_violations,
+        } => {
+            let message = if total_violations == 1 {
+                main_problem
+            } else {
+                format!("{} problems. First one: {}", total_violations, main_problem)
+            };
+            (CommitState::Failure, Some(message))
+        }
     };
 
     NewStatus {
@@ -109,5 +119,50 @@ impl<S> actix_web::FromRequest<S> for EventName {
             .map_err(|err| {
                 actix_web::Error::from(format_err!("Cannot parse X-Github-Event header: {}", err))
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod new_status_from_judgement {
+        use super::*;
+
+        #[test]
+        fn it_returns_success_on_approved_judgement() {
+            let judgement = Judgement::Approved;
+            let new_state = new_status_from_judgement(judgement);
+
+            assert_eq!(new_state.state, CommitState::Success);
+            assert_eq!(new_state.description, None);
+        }
+
+        #[test]
+        fn it_returns_failure_on_not_approved_judgement_with_single_problem() {
+            let judgement = Judgement::NotApproved {
+                main_problem: String::from("Not cool enough"),
+                total_violations: 1,
+            };
+            let new_state = new_status_from_judgement(judgement);
+
+            assert_eq!(new_state.state, CommitState::Failure);
+            assert_eq!(new_state.description, Some(String::from("Not cool enough")));
+        }
+
+        #[test]
+        fn it_returns_failure_on_not_approved_judgement_with_multiple_problems() {
+            let judgement = Judgement::NotApproved {
+                main_problem: String::from("Not cool enough"),
+                total_violations: 4,
+            };
+            let new_state = new_status_from_judgement(judgement);
+
+            assert_eq!(new_state.state, CommitState::Failure);
+            assert_eq!(
+                new_state.description,
+                Some(String::from("4 problems. First one: Not cool enough")),
+            );
+        }
     }
 }
