@@ -2,5 +2,5 @@
 **/*.rs.bk
 
 .env
-private_key.der
+*.der
 *.pem
