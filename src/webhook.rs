@@ -24,6 +24,11 @@ pub enum PullRequestEvent {
         repository: Repository,
         installation: Installation,
     },
+    Synchronize {
+        pull_request: PullRequest,
+        repository: Repository,
+        installation: Installation,
+    },
 
     #[serde(other)]
     Other, // { payload: serde_json::Value, },
@@ -94,6 +99,7 @@ impl PullRequestEvent {
         match self {
             PullRequestEvent::Labeled { repository, .. } => Some(&repository.url),
             PullRequestEvent::Unlabeled { repository, .. } => Some(&repository.url),
+            PullRequestEvent::Synchronize { repository, .. } => Some(&repository.url),
             PullRequestEvent::Other => None,
         }
     }
@@ -102,6 +108,7 @@ impl PullRequestEvent {
         match self {
             PullRequestEvent::Labeled { pull_request, .. } => Some(pull_request),
             PullRequestEvent::Unlabeled { pull_request, .. } => Some(pull_request),
+            PullRequestEvent::Synchronize { pull_request, .. } => Some(pull_request),
             PullRequestEvent::Other => None,
         }
     }
@@ -110,6 +117,7 @@ impl PullRequestEvent {
         match self {
             PullRequestEvent::Labeled { installation, .. } => Some(installation),
             PullRequestEvent::Unlabeled { installation, .. } => Some(installation),
+            PullRequestEvent::Synchronize { installation, .. } => Some(installation),
             PullRequestEvent::Other => None,
         }
     }
@@ -153,6 +161,19 @@ mod tests {
             Event::PullRequest(PullRequestEvent::Unlabeled { .. }) => {}
             other => panic!(
                 "Parsed as a {:#?}, but expected an Event::PullRequest(PullRequest::Unlabeled)",
+                other
+            ),
+        }
+    }
+
+    #[test]
+    fn it_parses_synchronized_pr_webhooks() {
+        let data = read_fixture("webhook_pr_synchronized.json");
+        let event: Event = Event::parse_json("pull_request", &data).unwrap();
+        match event {
+            Event::PullRequest(PullRequestEvent::Synchronize { .. }) => {}
+            other => panic!(
+                "Parsed as a {:#?}, but expected an Event::PullRequest(PullRequest::Synchronize)",
                 other
             ),
         }
