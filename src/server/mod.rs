@@ -19,15 +19,17 @@ pub use self::webhook::handle_webhook;
 
 pub struct ServerState {
     api_client: GithubClient,
+    webhook_secret: String,
     /// Store auth tokens for different installations. Tokens expire once in a while, but can be
     /// regenerated using the private key stored in GithubClient.
     auth_tokens: RwLock<TokenStore>,
 }
 
 impl ServerState {
-    pub fn new(api_client: GithubClient) -> Self {
+    pub fn new(api_client: GithubClient, webhook_secret: &str) -> Self {
         ServerState {
             api_client: api_client,
+            webhook_secret: webhook_secret.to_owned(),
             auth_tokens: RwLock::new(TokenStore::default()),
         }
     }
@@ -50,6 +52,10 @@ impl ServerState {
     fn get_auth_token(&self, installation_id: u64) -> Option<String> {
         let tokens = self.auth_tokens.read().ok()?;
         tokens.get_token(installation_id)
+    }
+
+    fn webhook_secret(&self) -> &str {
+        &self.webhook_secret
     }
 }
 

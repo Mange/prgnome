@@ -1,6 +1,8 @@
 extern crate actix_web;
+extern crate crypto;
 extern crate dotenv;
 extern crate env_logger;
+extern crate hex;
 extern crate listenfd;
 extern crate mime;
 extern crate reqwest;
@@ -55,7 +57,10 @@ fn main() {
 
 fn run(app_options: AppOptions) -> Result<(), Error> {
     let api_client = api_client(&app_options).context("Could not initialize Github API")?;
-    let state = Arc::new(ServerState::new(api_client));
+    let state = Arc::new(ServerState::new(
+        api_client,
+        &app_options.github_webhook_secret,
+    ));
 
     let mut listenfd = ListenFd::from_env();
     let mut server = actix_web::server::new(move || {

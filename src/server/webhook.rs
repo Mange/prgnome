@@ -1,3 +1,8 @@
+use crypto::hmac::Hmac;
+use crypto::mac::{Mac, MacResult};
+use crypto::sha1::Sha1;
+use hex::FromHex;
+
 use super::prelude::*;
 use crate::webhook::Event;
 use github_api::{Client as GithubClient, NewStatus, State as CommitState};
@@ -9,8 +14,16 @@ const STATUS_CONTEXT_NAME: &str = "mange/prgnome";
 pub fn handle_webhook(
     state: State<Arc<ServerState>>,
     event_name: EventName,
+    signature: GithubSignature,
     body: String,
 ) -> Result<String> {
+    if !verify_signature(&body, &signature, state.webhook_secret()) {
+        warn!("Webhook signature verification failed.");
+        return Err(actix_web::Error::from(format_err!(
+            "Signature could not be verified",
+        )));
+    }
+
     let event = Event::parse_json(&event_name.0, &body)?;
     match event {
         Event::PullRequest(pr_event) => {
@@ -99,8 +112,35 @@ fn new_status_from_judgement(judgement: Judgement) -> NewStatus {
     }
 }
 
+fn verify_signature(payload: &str, signature: &str, secret: &str) -> bool {
+    // https://developer.github.com/webhooks/securing/#validating-payloads-from-github
+    let signature = &signature[5..signature.len()]; // cut off "sha1="
+    debug!("Verifying webhook signature");
+
+    let signature_bytes = match Vec::from_hex(signature) {
+        Ok(val) => val,
+        Err(err) => {
+            error!(
+                "Failed to parse {} as hex-encoded bytes: {}",
+                signature, err
+            );
+            return false;
+        }
+    };
+
+    let mut hmac = Hmac::new(Sha1::new(), secret.as_bytes());
+
+    hmac.input(payload.as_bytes());
+
+    // Secure compare helper in MacResult
+    hmac.result() == MacResult::new(&signature_bytes)
+}
+
 #[derive(Debug)]
 pub struct EventName(pub String);
+
+#[derive(Debug)]
+pub struct GithubSignature(pub String);
 
 impl<S> actix_web::FromRequest<S> for EventName {
     type Config = ();
@@ -119,6 +159,34 @@ impl<S> actix_web::FromRequest<S> for EventName {
             .map_err(|err| {
                 actix_web::Error::from(format_err!("Cannot parse X-Github-Event header: {}", err))
             })
+    }
+}
+
+impl<S> actix_web::FromRequest<S> for GithubSignature {
+    type Config = ();
+    type Result = Result<GithubSignature>;
+
+    fn from_request(req: &HttpRequest<S>, _cfg: &Self::Config) -> Self::Result {
+        let header = req
+            .headers()
+            .get("X-Hub-Signature")
+            .ok_or_else(|| format_err!("No X-Hub-Signature header present"))?;
+
+        header
+            .to_str()
+            .map(String::from)
+            .map(GithubSignature)
+            .map_err(|err| {
+                actix_web::Error::from(format_err!("Cannot parse X-Hub-Signature header: {}", err))
+            })
+    }
+}
+
+impl std::ops::Deref for GithubSignature {
+    type Target = String;
+
+    fn deref(&self) -> &String {
+        &self.0
     }
 }
 
