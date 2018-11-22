@@ -91,6 +91,7 @@ fn load_commits(
 fn new_status_from_judgement(judgement: Judgement) -> NewStatus {
     let (state, description) = match judgement {
         Judgement::Approved => (CommitState::Success, None),
+        Judgement::ForceApproved(reason) => (CommitState::Success, Some(reason)),
         Judgement::NotApproved {
             main_problem,
             total_violations,
@@ -230,6 +231,18 @@ mod tests {
             assert_eq!(
                 new_state.description,
                 Some(String::from("4 problems. First one: Not cool enough")),
+            );
+        }
+
+        #[test]
+        fn it_returns_success_on_force_approved_judgement() {
+            let judgement = Judgement::ForceApproved(String::from("Tagged with something cool"));
+            let new_state = new_status_from_judgement(judgement);
+
+            assert_eq!(new_state.state, CommitState::Success);
+            assert_eq!(
+                new_state.description,
+                Some(String::from("Tagged with something cool")),
             );
         }
     }

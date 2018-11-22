@@ -1,6 +1,8 @@
 const FORBIDDEN_INTROS: [&'static str; 3] = ["wip", "fixup!", "squash!"];
 const FORBIDDEN_MESSAGES: [&'static str; 1] = ["tmp"];
 
+const MAGIC_IGNORE_LABEL: &str = "prgnome-ignore";
+
 const FORBIDDEN_LABELS: [&'static str; 9] = [
     "work in progress",
     "work-in-progress",
@@ -29,11 +31,13 @@ pub enum Judgement {
         main_problem: String,
         total_violations: usize,
     },
+    ForceApproved(String),
 }
 
 impl Judgement {
     fn add_problem(&mut self, message: String) {
         match self {
+            Judgement::ForceApproved(_) => {}
             Judgement::Approved => {
                 *self = Judgement::NotApproved {
                     main_problem: message,
@@ -89,6 +93,10 @@ impl<'a> Intel<'a> {
             let normalized = name.to_ascii_lowercase();
             if FORBIDDEN_LABELS.contains(&&*normalized) {
                 judgement.add_problem(format!("Remove the \"{}\" label", name));
+            }
+
+            if normalized == MAGIC_IGNORE_LABEL {
+                return Judgement::ForceApproved(format!("Tagged with {}", name));
             }
         }
 
@@ -215,6 +223,23 @@ mod tests {
                 main_problem: String::from("Rebase away \"fixup! initial commit\""),
                 total_violations: 2,
             }
+        );
+    }
+
+    #[test]
+    fn it_approves_all_issues_if_tagged_with_magic_label() {
+        let intel = Intel {
+            commit_messages: vec![
+                String::from("Initial commit"),
+                String::from("fixup! Initial commit"),
+            ],
+            label_names: vec!["Work-in-progress", "prgnome-ignore"],
+            ..Default::default()
+        };
+
+        assert_eq!(
+            intel.validate(),
+            Judgement::ForceApproved(String::from("Tagged with prgnome-ignore")),
         );
     }
 }
