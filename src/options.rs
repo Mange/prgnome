@@ -103,6 +103,7 @@ impl AppOptions {
     pub fn init_logger(&self) {
         use log::LevelFilter;
         let mut builder = env_logger::Builder::from_env("LOG_SPECIFICATION");
+        builder.default_format_module_path(false);
 
         if let Some(output_level) = self.output_level {
             match output_level {
