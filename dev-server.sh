@@ -11,4 +11,4 @@ exec systemfd --no-pid -s http::4567 -- \
   cargo watch --clear \
     -x check \
     -x test \
-    -x run
+    -x "run -- --bind 127.0.0.1:4567 --log-level debug"
