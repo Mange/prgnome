@@ -25,14 +25,32 @@ A full reference can be found under the `--help` output.
 
 ## How to install
 
-1. Create a new Github App.
-   * Name it something you like and input URLs for where you intend to deploy this.
+1. [Create a new Github App.](https://developer.github.com/apps/building-github-apps/creating-a-github-app/)
+   * Name it something you like.
+   * Determine which hostname you will deploy it under and input it for the
+     URLs below.
+     * Webhook URL is `<URL>/webhook`.
+     * User authorization callback URL is unused but still required, so enter
+       `<URL>/auth/callback`.
+   * If you are using HTTPS, then also enable SSL verification!
+   * Permissions:
+     * Checks: Read & Write
+     * Repository contents: Read-only
+     * Repository metadata: Read-only
+     * Pull requests: Read-only
+     * Commit statuses: Read & Write
+     * Everything else: No access
+   * Subscribe to events:
+     * Pull request
 2. Download the private key and store the webhook secret somewhere.
 3. Convert the private key from PEM format into DER format.
    * Use `generate_private_key.sh` from this repo, or manually run the commands
      inside that script.
 4. Deploy. (See below)
-5. Install the app in your organization.
+5. Install the app in your organization
+   * Click on the "Public Page" of your new application.
+   * Then click on "Install".
+   * Select which repos you want it to access.
 
 ### Deploying using Docker
 
