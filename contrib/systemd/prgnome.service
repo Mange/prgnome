@@ -1,0 +1,16 @@
+[Unit]
+Description="Run prgnome, a Github PR bot daemon"
+
+[Service]
+ExecStart=prgnome
+Environment="PRIVATE_KEY_PATH=/etc/xdg/prgnome/private_key.der"
+EnvironmentFile=/etc/xdg/prgnome/settings.env
+
+# Comment out this section and enable and start prgnome.socket to have the
+# daemon start on-demand on first connection to it.
+# Leave this in place and the daemon will be started automatically.
+# prgnome.socket activation still makes sure that the server can start to accept
+# connections before this deamon has started, and then get handed active
+# connections as soon as the service has finished booting.
+[Install]
+WantedBy=multi-user.target

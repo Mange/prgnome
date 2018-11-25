@@ -1,0 +1,10 @@
+# Enable and start this socket unit to have Systemd manage the connections to
+# prgnome. This allows you to have on-deman startup of the daemon, or to accept
+# connections earlier in the boot process.
+# See http://0pointer.de/blog/projects/socket-activation.html
+
+[Socket]
+ListenStream=/run/prgnome.socket
+
+[Install]
+WantedBy=sockets.target

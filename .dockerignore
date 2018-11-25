@@ -4,9 +4,9 @@ target
 # Development stuff
 dev-server.sh
 build-docker-image.sh
+contrib
 
 # Sensitive stuff
 .env
 *.pem
 *.der
-

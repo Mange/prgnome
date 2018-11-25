@@ -44,8 +44,8 @@ A full reference can be found under the `--help` output.
      * Pull request
 2. Download the private key and store the webhook secret somewhere.
 3. Convert the private key from PEM format into DER format.
-   * Use `generate_private_key.sh` from this repo, or manually run the commands
-     inside that script.
+   * Use `contrib/generate_private_key.sh` from this repo, or manually run the
+     commands inside that script.
 4. Deploy. (See below)
 5. Install the app in your organization
    * Click on the "Public Page" of your new application.
@@ -77,16 +77,39 @@ services:
       GITHUB_WEBHOOK_SECRET: REDACTED
     volumes:
       - "/path/to/private_key.der:private_key.der"
+    restart_policy:
+      condition: on-failure
 ```
 
 Then place some web server in front to proxy to the `$BIND` address and
-terminate SSL.
+terminate SSL. If the web server is not running inside Docker, don't forget to
+place a `ports` configuration there to expose your port on the Docker host.
+
+### Deploying using Systemd
+
+Use the units under `contrib/systemd` as a base and build your own setup. The
+default setup if you make no changes is this:
+
+  * `prgnome.service` can be enabled to start automatically on boot
+  * `prgnome.socket` can be enabled to start the daemon on-demand on first
+    connection
+  * If both are enabled, the daemon will boot when system is ready but sockets
+    will start to get accepted earlier to reduce risks of dropped connections.
+  * Environment variables will be read from `/etc/xdg/prgnome/settings.env`,
+    which is where you can put things like `LOG_LEVEL`, `GITHUB_APP_ID`, and
+    `GITHUB_WEBHOOK_SECRET`.
+  * The private key will be read from `/etc/xdg/prgnome/private_key.der`,
+    unless overridden by the `settings.env` file.
+
+You can read more about socket units here: [Systemd for Developers
+I](http://0pointer.de/blog/projects/socket-activation.html)
 
 ### Deploying process directly
 
-Run `prgnome --help` to see which options are accepted.
+Run `prgnome --help` to see which options are accepted. Process will run in the
+foreground, so it is up to you to daemonize it and restart it on crashes.
 
-Systemd units will be written for this program later, which you could use.
+It is recommended to run in Docker or Systemd if possible.
 
 ## Development
 
@@ -97,7 +120,7 @@ Install Rust via Rustup. Then run the tests or finished binary using `cargo`:
 
 Create an Github App like under the installation instructions, but for
 development. Download the private key to the root of this directory and run
-`./generate_private_key.sh`.
+`./contrib/generate_private_key.sh`.
 
 Copy `example.env` into `.env` and edit it so it contains the correct details
 from your newly created example app.
