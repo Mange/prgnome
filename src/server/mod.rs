@@ -2,11 +2,11 @@ mod index;
 mod webhook;
 
 use actix_web::{http, HttpResponse, Result};
+use event::EventError;
 use github_api::{ApiError, Client as GithubClient};
 use std::sync::RwLock;
 use token_store::TokenStore;
 use utils::log_error_trace;
-use webhook::WebhookError;
 
 mod prelude {
     pub use super::ServerState;
@@ -38,11 +38,17 @@ impl ServerState {
     /// stored.
     fn get_or_create_auth_token(&self, installation_id: u64) -> Result<String, ApiError> {
         match self.get_auth_token(installation_id) {
-            Some(token) => Ok(token),
+            Some(token) => {
+                debug!("Auth token present in cache");
+                Ok(token)
+            }
             None => {
+                debug!("Auth token not in cache. Generate a new one…");
                 let token = self.api_client.generate_auth_token(installation_id)?;
+                debug!("Waiting for write lock to auth token cache");
                 let mut tokens = self.auth_tokens.write().unwrap();
                 tokens.add_token(installation_id, token.clone());
+                debug!("Auth token written to cache. Releasing write lock.");
                 Ok(token)
             }
         }
@@ -59,7 +65,7 @@ impl ServerState {
     }
 }
 
-impl actix_web::ResponseError for WebhookError {
+impl actix_web::ResponseError for EventError {
     fn error_response(&self) -> HttpResponse {
         log_error_trace(self);
         HttpResponse::new(http::StatusCode::BAD_REQUEST)

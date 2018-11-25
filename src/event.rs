@@ -72,27 +72,27 @@ pub struct Installation {
 }
 
 #[derive(Debug, Fail)]
-pub enum WebhookError {
+pub enum EventError {
     #[fail(display = "JSON parsing error")]
     ParseError(#[cause] serde_json::Error),
 }
 
 impl Event {
-    pub fn parse_json(event_name: &str, json: &str) -> Result<Event, WebhookError> {
+    pub fn parse_json(event_name: &str, json: &str) -> Result<Event, EventError> {
         match event_name {
             "pull_request" => PullRequestEvent::parse_json(json).map(Event::PullRequest),
             _ => serde_json::from_str(json)
                 .map(|value| Event::Unknown {
                     name: event_name.to_owned(),
                     payload: value,
-                }).map_err(WebhookError::from),
+                }).map_err(EventError::from),
         }
     }
 }
 
 impl PullRequestEvent {
-    pub fn parse_json(json: &str) -> Result<PullRequestEvent, WebhookError> {
-        serde_json::from_str(json).map_err(WebhookError::from)
+    pub fn parse_json(json: &str) -> Result<PullRequestEvent, EventError> {
+        serde_json::from_str(json).map_err(EventError::from)
     }
 
     pub fn repo_url(&self) -> Option<&str> {
@@ -123,9 +123,9 @@ impl PullRequestEvent {
     }
 }
 
-impl From<serde_json::Error> for WebhookError {
-    fn from(error: serde_json::Error) -> WebhookError {
-        WebhookError::ParseError(error)
+impl From<serde_json::Error> for EventError {
+    fn from(error: serde_json::Error) -> EventError {
+        EventError::ParseError(error)
     }
 }
 

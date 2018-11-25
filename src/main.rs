@@ -27,13 +27,13 @@ use listenfd::ListenFd;
 use std::sync::Arc;
 use structopt::StructOpt;
 
+mod event;
 mod github_api;
 mod judgement;
 mod options;
 mod server;
 mod token_store;
 mod utils;
-mod webhook;
 
 use github_api::Client as GithubClient;
 use options::AppOptions;
@@ -72,6 +72,8 @@ fn run(app_options: AppOptions) -> Result<(), Error> {
             })
     });
 
+    // If passed any LISTEN_FD environment variables, reuse the file descriptors. If not, start a
+    // new server to the bind address.
     server = if let Some(l) = listenfd.take_tcp_listener(0).unwrap() {
         server.listen(l)
     } else {

@@ -19,6 +19,10 @@ impl TokenStore {
             Some((time, token)) if time.elapsed() < Duration::from_secs(MAX_TTL) => {
                 Some(token.clone())
             }
+            Some((time, _token)) => {
+                debug!("Token expired {} seconds ago.", time.elapsed().as_secs());
+                None
+            }
             _ => None,
         }
     }

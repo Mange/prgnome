@@ -2,9 +2,10 @@ use crypto::hmac::Hmac;
 use crypto::mac::{Mac, MacResult};
 use crypto::sha1::Sha1;
 use hex::FromHex;
+use std::fmt;
 
 use super::prelude::*;
-use crate::webhook::Event;
+use event::Event;
 use github_api::{Client as GithubClient, NewStatus, State as CommitState};
 use judgement::*;
 use utils::{log_error_trace, log_error_trace_if_err};
@@ -17,6 +18,8 @@ pub fn handle_webhook(
     signature: GithubSignature,
     body: String,
 ) -> Result<String> {
+    debug!("Got webhook request of type {}", event_name);
+
     if !verify_signature(&body, &signature, state.webhook_secret()) {
         warn!("Webhook signature verification failed.");
         return Err(actix_web::Error::from(format_err!(
@@ -32,9 +35,19 @@ pub fn handle_webhook(
                 pr_event.pull_request(),
                 pr_event.installation(),
             ) {
-                let auth_token = state.get_or_create_auth_token(installation.id)?;
+                debug!("Loading auth token for installation {}", installation.id);
+                let auth_token = match state.get_or_create_auth_token(installation.id) {
+                    Ok(val) => val,
+                    Err(error) => {
+                        error!("Could not load auth token: {}", error);
+                        return Err(error.into());
+                    }
+                };
+
                 let label_names: Vec<&str> =
                     pr.labels.iter().map(|label| label.name.as_str()).collect();
+
+                debug!("Loading commits in PR range");
                 let (total_commits, commit_messages) = load_commits(
                     &state.api_client,
                     repo_url,
@@ -53,6 +66,7 @@ pub fn handle_webhook(
                 };
 
                 let judgement = intel.validate();
+                debug!("Judgement: {:?}", judgement);
                 let new_status = new_status_from_judgement(judgement);
                 info!("Setting new status to: {:#?}", new_status);
 
@@ -62,6 +76,9 @@ pub fn handle_webhook(
                     &pr.head.sha,
                     new_status,
                 ));
+            } else {
+                info!("Unsupported PR webhook event");
+                debug!("{:#?}", pr_event);
             }
         }
         _ => {}
@@ -139,6 +156,12 @@ fn verify_signature(payload: &str, signature: &str, secret: &str) -> bool {
 
 #[derive(Debug)]
 pub struct EventName(pub String);
+
+impl fmt::Display for EventName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 #[derive(Debug)]
 pub struct GithubSignature(pub String);

@@ -54,6 +54,7 @@ impl Client {
             installation_id
         );
         let jwt = self.new_jwt()?;
+        debug!("POST {}", url);
         let mut response = reqwest::Client::new()
             .post(&url)
             .header("Authorization", format!("Bearer {}", jwt))
@@ -75,6 +76,7 @@ impl Client {
         let full_path = format!("{repo}/statuses/{sha}", repo = repo_url, sha = sha);
         let client = reqwest::Client::new();
 
+        debug!("POST {}", full_path);
         let mut response = add_headers(client.post(&full_path), auth_token)
             .json(&input)
             .send()?
@@ -98,6 +100,7 @@ impl Client {
         );
         let client = reqwest::Client::new();
 
+        debug!("GET {}", full_path);
         let mut response = add_headers(client.get(&full_path), auth_token)
             .send()?
             .error_for_status()?;
