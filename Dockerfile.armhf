@@ -1,4 +1,4 @@
-FROM messense/rust-musl-cross:x86_64-musl AS builder
+FROM messense/rust-musl-cross:armv7-musleabihf AS builder
 MAINTAINER Magnus Bergmark "magnus.bergmark@gmail.com"
 
 # Create new blank project for our dependencies
@@ -6,6 +6,8 @@ RUN USER=root cargo init --bin --name prgnome .
 
 # Install dependencies and delete artifacts from the fake project.
 COPY ./Cargo.* ./
+# TODO: Remove test files, or figure out how to build and run the container
+# inside a ARMv7 QEMU host or something.
 RUN cargo build --tests && \
   cargo build --release && \
   rm -r ./src && \
@@ -15,13 +17,18 @@ RUN cargo build --tests && \
 # Actually build this project, making sure tests pass first
 COPY ./src ./src
 COPY ./tests ./tests
-RUN cargo test && cargo build --release
+RUN cargo build --release
 
 # Build app image
-FROM alpine:latest
+FROM arm32v6/alpine:latest
 MAINTAINER Magnus Bergmark "magnus.bergmark@gmail.com"
 
-RUN apk --no-cache add ca-certificates
+# TODO: Will this be a problem? Need certs, right? But also needs to RUN in
+# ARMv7 arch somehow. QEMU?
+# RUN apk --no-cache add ca-certificates
 
-COPY --from=builder /home/rust/src/target/release/prgnome /usr/local/bin
+COPY --from=builder \
+  /home/rust/src/target/armv7-unknown-linux-musleabihf/release/prgnome \
+  /usr/local/bin
+
 CMD /usr/local/bin/prgnome
