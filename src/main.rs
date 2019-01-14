@@ -70,7 +70,8 @@ fn run(app_options: AppOptions) -> Result<(), Error> {
             .resource("/webhook", |r| {
                 r.method(http::Method::POST).with(server::handle_webhook)
             })
-    });
+    })
+    .keep_alive(actix_web::server::KeepAlive::Disabled);
 
     // If passed any LISTEN_FD environment variables, reuse the file descriptors. If not, start a
     // new server to the bind address.
