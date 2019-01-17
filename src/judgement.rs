@@ -78,12 +78,12 @@ impl<'a> Intel<'a> {
             let normalized = truncate(message).to_ascii_lowercase();
 
             if FORBIDDEN_MESSAGES.contains(&&*normalized) {
-                judgement.add_problem(format!("Rebase away \"{}\"", normalized));
+                judgement.add_problem(format!("Rebase away \"{}\"", message));
             }
 
             for forbidden_intro in FORBIDDEN_INTROS.iter() {
                 if normalized.starts_with(forbidden_intro) {
-                    judgement.add_problem(format!("Rebase away \"{}\"", normalized));
+                    judgement.add_problem(format!("Rebase away \"{}\"", message));
                 }
             }
         }
@@ -175,7 +175,7 @@ mod tests {
         assert_eq!(
             intel.validate(),
             Judgement::NotApproved {
-                main_problem: String::from("Rebase away \"fixup! initial commit\""),
+                main_problem: String::from("Rebase away \"fixup! Initial commit\""),
                 total_violations: 1,
             }
         );
@@ -240,7 +240,7 @@ mod tests {
         assert_eq!(
             intel.validate(),
             Judgement::NotApproved {
-                main_problem: String::from("Rebase away \"fixup! initial commit\""),
+                main_problem: String::from("Rebase away \"fixup! Initial commit\""),
                 total_violations: 2,
             }
         );
