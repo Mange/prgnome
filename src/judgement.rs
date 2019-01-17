@@ -1,14 +1,13 @@
 const FORBIDDEN_INTROS: [&'static str; 3] = ["wip", "fixup!", "squash!"];
 const FORBIDDEN_MESSAGES: [&'static str; 1] = ["tmp"];
 
-const MAGIC_IGNORE_LABEL: &str = "prgnome-ignore";
+const MAGIC_IGNORE_LABEL: &str = "prgnome ignore";
 
-const FORBIDDEN_LABELS: [&'static str; 9] = [
+const FORBIDDEN_LABELS: [&'static str; 8] = [
     "work in progress",
-    "work-in-progress",
     "wip",
     "in progress",
-    "don't merge",
+    "dont merge",
     "do not merge",
     "wait",
     "not ready",
@@ -90,7 +89,7 @@ impl<'a> Intel<'a> {
         }
 
         for name in &self.label_names {
-            let normalized = name.to_ascii_lowercase();
+            let normalized = normalize_label(name);
             if FORBIDDEN_LABELS.contains(&&*normalized) {
                 judgement.add_problem(format!("Remove the \"{}\" label", name));
             }
@@ -104,15 +103,36 @@ impl<'a> Intel<'a> {
     }
 }
 
+fn normalize_label(name: &str) -> String {
+    name.chars()
+        .flat_map(|c: char| match c {
+            val if val.is_alphanumeric() => Some(val.to_ascii_lowercase()),
+            ' ' | '-' | '/' | ':' => Some(' '),
+            _ => None,
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    fn it_normalizes_labels() {
+        for (input, output) in &[
+            ("Hello world", "hello world"),
+            ("size:large", "size large"),
+            ("look/at/mEeE!?", "look at meee"),
+        ] {
+            assert_eq!(&normalize_label(input), output);
+        }
+    }
+
+    #[test]
     fn it_has_a_valid_whitelist() {
-        // Whitelist must be lowercase
+        // Whitelist must be normalized already
         for label in FORBIDDEN_LABELS.iter() {
-            assert_eq!(&label.to_ascii_lowercase(), label);
+            assert_eq!(&normalize_label(label), label);
         }
 
         for intro in FORBIDDEN_INTROS.iter() {
@@ -129,14 +149,14 @@ mod tests {
     #[test]
     fn it_forbids_intel_with_forbidden_labels() {
         let intel = Intel {
-            label_names: vec!["do NOT merge"],
+            label_names: vec!["do NOT merge!!!!!"],
             ..Default::default()
         };
 
         assert_eq!(
             intel.validate(),
             Judgement::NotApproved {
-                main_problem: String::from("Remove the \"do NOT merge\" label"),
+                main_problem: String::from("Remove the \"do NOT merge!!!!!\" label"),
                 total_violations: 1,
             },
         );
