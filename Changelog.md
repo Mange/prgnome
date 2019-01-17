@@ -1,3 +1,8 @@
+# 1.0.2 (2019-01-17)
+
+* React on more variations of labels (like "Don't merge!", or "dont-merge")
+* Show original commit message in judgment ('Rebase away: "fixup! UPPER CASE"')
+
 # 1.0.1 (2019-01-14)
 
 * Disable HTTP keep-alive. This might have been causing some issues when
